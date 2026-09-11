@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  annotations: {}
+  labels:
+    name: fluentbit
+  name: fluentbit
+  namespace: syn-fluentbit
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: fluentbit
+      app.kubernetes.io/name: fluent-bit

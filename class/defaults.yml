@@ -7,6 +7,12 @@ parameters:
     namespace: syn-fluentbit
     createNamespace: true
 
+    kind: DaemonSet
+    replicas: 1
+    podDisruptionBudget:
+      create: false
+      maxUnavailable: 1
+
     charts:
       fluent-bit:
         source: https://fluent.github.io/helm-charts
@@ -88,6 +94,20 @@ parameters:
 
     helm_values:
       fullnameOverride: ${_instance}
+      kind: ${fluentbit:kind}
+      replicaCount: ${fluentbit:replicas}
+      podDisruptionBudget:
+        maxUnavailable: ${fluentbit:podDisruptionBudget:maxUnavailable}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: fluent-bit
+                    app.kubernetes.io/instance: ${_instance}
       podAnnotations: ${fluentbit:annotations}
       image:
         repository: ${fluentbit:images:fluent_bit:image}

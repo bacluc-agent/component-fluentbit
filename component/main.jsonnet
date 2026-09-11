@@ -208,4 +208,19 @@ local secret = kube.Secret(params.secretName) {
         },
       },
     },
+  [if std.get(params, 'kind', 'DaemonSet') == 'Deployment' && params.replicas > 1 then 'pdb']:
+    kube.PodDisruptionBudget('fluentbit') {
+      metadata+: {
+        namespace: params.namespace,
+      },
+      spec: {
+        maxUnavailable: params.podDisruptionBudget.maxUnavailable,
+        selector: {
+          matchLabels: {
+            'app.kubernetes.io/name': 'fluent-bit',
+            'app.kubernetes.io/instance': instanceName,
+          },
+        },
+      },
+    },
 }
