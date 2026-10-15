@@ -5,6 +5,17 @@ local inv = kap.inventory();
 // The hiera parameters for the component
 local params = inv.parameters.fluentbit;
 local instanceName = inv.parameters._instance;
+local selectorLabels = {
+  'app.kubernetes.io/name': 'fluent-bit',
+  'app.kubernetes.io/instance': instanceName,
+};
+local labels = selectorLabels {
+  'app.kubernetes.io/component': 'fluent-bit',
+  'app.kubernetes.io/managed-by': 'commodore',
+};
+local chartLabels = labels {
+  'app.kubernetes.io/version': std.split(params.images.fluent_bit.tag, '@')[0],
+};
 
 local render_fluentbit_cfg(type, name, cfg) =
   local header = '[%s]' % std.asciiUpper(type);
@@ -147,14 +158,7 @@ local service = render_fluentbit_cfg('SERVICE', '', serviceCfg);
 local configmap = kube.ConfigMap(params.configMapName) {
   metadata+: {
     namespace: params.namespace,
-    labels+: {
-      'app.kubernetes.io/name': 'fluent-bit',
-      'app.kubernetes.io/instance': instanceName,
-      'app.kubernetes.io/version':
-        std.split(params.images.fluent_bit.tag, '@')[0],
-      'app.kubernetes.io/component': 'fluent-bit',
-      'app.kubernetes.io/managed-by': 'commodore',
-    },
+    labels+: chartLabels,
   },
   data: {
     'fluent-bit.conf': std.join('\n', [ service, filters, inputs, outputs ]),
@@ -164,12 +168,7 @@ local configmap = kube.ConfigMap(params.configMapName) {
 
 local secret = kube.Secret(params.secretName) {
   metadata+: {
-    labels+: {
-      'app.kubernetes.io/name': params.secretName,
-      'app.kubernetes.io/instance': instanceName,
-      'app.kubernetes.io/component': 'fluent-bit',
-      'app.kubernetes.io/managed-by': 'commodore',
-    },
+    labels+: labels { 'app.kubernetes.io/name': params.secretName },
   },
   stringData: {
     [s]: params.secret[s]
@@ -186,14 +185,7 @@ local secret = kube.Secret(params.secretName) {
     kube._Object('monitoring.coreos.com/v1', 'ServiceMonitor', 'fluent-bit') {
       metadata+: {
         namespace: params.namespace,
-        labels+: {
-          'app.kubernetes.io/name': 'fluent-bit',
-          'app.kubernetes.io/instance': instanceName,
-          'app.kubernetes.io/version':
-            std.split(params.images.fluent_bit.tag, '@')[0],
-          'app.kubernetes.io/component': 'fluent-bit',
-          'app.kubernetes.io/managed-by': 'commodore',
-        },
+        labels+: chartLabels,
       },
       spec: {
         endpoints: [ {
@@ -201,10 +193,7 @@ local secret = kube.Secret(params.secretName) {
           path: '/api/v1/metrics/prometheus',
         } ],
         selector: {
-          matchLabels: {
-            'app.kubernetes.io/name': 'fluent-bit',
-            'app.kubernetes.io/instance': instanceName,
-          },
+          matchLabels: selectorLabels,
         },
       },
     },
